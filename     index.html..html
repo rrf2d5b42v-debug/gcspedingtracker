@@ -1,0 +1,828 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ledger — Rent · Groceries · Spending</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: 'IBM Plex Mono', 'SF Mono', Menlo, Consolas, monospace;
+    background: #F4EFE6;
+    color: #2A2721;
+  }
+  .page { max-width: 640px; margin: 0 auto; padding: 28px 20px 48px; }
+  .eyebrow { font-size: 11px; letter-spacing: .12em; color: #8B5E34; font-weight: 700; margin-bottom: 4px; }
+  h1 { font-family: Georgia, 'Times New Roman', serif; font-size: 26px; margin: 0; }
+  header { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 20px; flex-wrap: wrap; gap: 12px; }
+  select, input, button, textarea { font-family: inherit; font-size: 13px; }
+  select#monthSelect { padding: 8px 10px; border-radius: 6px; border: 1px solid #D8CFBB; background: #fff; }
+  .summary-strip { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px,1fr)); gap: 10px; margin-bottom: 18px; }
+  .summary-card { display: flex; align-items: center; gap: 10px; background: #fff; border: 1px solid #E4DCC8; border-radius: 10px; padding: 12px 14px; }
+  .summary-card.total { background: #2F3B4C; color: #F4EFE6; }
+  .summary-icon { width: 30px; height: 30px; border-radius: 8px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 15px; }
+  .summary-label { font-size: 10.5px; color: #8A8270; letter-spacing: .04em; }
+  .summary-card.total .summary-label { color: #C9D1DC; }
+  .summary-amount { font-size: 16px; font-weight: 700; margin-top: 2px; }
+  .paste-box { background: #fff; border: 1px solid #E4DCC8; border-radius: 10px; padding: 12px; margin-bottom: 14px; }
+  .paste-box label { display: block; font-size: 11px; color: #8A8270; margin-bottom: 6px; letter-spacing: .04em; }
+  .paste-row { display: flex; gap: 8px; }
+  .paste-row textarea { flex: 1 1 auto; resize: vertical; min-height: 38px; padding: 8px 10px; border-radius: 6px; border: 1px solid #D8CFBB; background: #FCFAF5; }
+  .paste-row button { flex: 0 0 auto; background: #8B5E34; color: #fff; border: none; border-radius: 6px; padding: 0 14px; cursor: pointer; }
+  form.entry-form { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 18px; background: #fff; border: 1px solid #E4DCC8; border-radius: 10px; padding: 10px; }
+  form.entry-form input, form.entry-form select { padding: 9px 10px; border-radius: 6px; border: 1px solid #D8CFBB; background: #FCFAF5; }
+  #f-date { flex: 0 0 148px; }
+  #f-category { flex: 0 0 140px; }
+  #f-note { flex: 1 1 auto; min-width: 100px; }
+  #f-amount { flex: 0 0 100px; }
+  #addBtn { flex: 0 0 40px; background: #2F3B4C; color: #F4EFE6; border: none; border-radius: 6px; cursor: pointer; font-size: 18px; }
+  .list { display: flex; flex-direction: column; gap: 1px; background: #E4DCC8; border: 1px solid #E4DCC8; border-radius: 10px; overflow: hidden; }
+  .empty { padding: 28px 16px; text-align: center; color: #8A8270; font-size: 13px; background: #fff; }
+  .row { display: flex; align-items: center; gap: 10px; background: #fff; padding: 10px 12px; }
+  .row-icon { width: 24px; height: 24px; border-radius: 6px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 12px; }
+  .row-date { font-size: 11.5px; color: #8A8270; flex: 0 0 52px; }
+  .row-note { flex: 1 1 auto; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .row-amount { font-size: 13.5px; font-weight: 700; flex: 0 0 auto; }
+  .del-btn { background: none; border: none; color: #B8AF9A; cursor: pointer; font-size: 14px; padding: 4px; }
+  footer { margin-top: 22px; font-size: 11px; color: #8A8270; text-align: center; }
+  .error-banner { background: #F6DCD5; color: #8A3B2A; padding: 8px 12px; border-radius: 6px; font-size: 12.5px; margin-bottom: 14px; display: none; }
+  .section-heading { font-size: 11px; letter-spacing: .1em; color: #8B5E34; font-weight: 700; margin: 26px 0 8px; text-transform: uppercase; }
+  #buyForm { margin-bottom: 10px; }
+  #b-item { padding: 9px 10px; border-radius: 6px; border: 1px solid #D8CFBB; background: #FCFAF5; }
+  #buyAddBtn { flex: 0 0 40px; background: #4A7C59; color: #F4EFE6; border: none; border-radius: 6px; cursor: pointer; font-size: 18px; }
+  .buy-row { display: flex; align-items: center; gap: 10px; background: #fff; padding: 10px 12px; }
+  .buy-row.bought .buy-item { text-decoration: line-through; color: #B8AF9A; }
+  .buy-row input[type=checkbox] { width: 17px; height: 17px; accent-color: #4A7C59; flex-shrink: 0; }
+  .buy-item { flex: 1 1 auto; font-size: 13px; }
+  .buy-cat { font-size: 10px; letter-spacing: .04em; text-transform: uppercase; flex-shrink: 0; }
+  .view-toggle { display: flex; gap: 6px; margin-bottom: 16px; }
+  .toggle-btn { flex: 1; padding: 9px 10px; border-radius: 6px; border: 1px solid #D8CFBB; background: #fff; color: #8A8270; cursor: pointer; font-size: 12.5px; font-weight: 600; }
+  .toggle-btn.active { background: #2F3B4C; color: #F4EFE6; border-color: #2F3B4C; }
+  .pay-settings { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; font-size: 12px; color: #8A8270; flex-wrap: wrap; }
+  .pay-settings input[type=date] { padding: 6px 8px; border-radius: 6px; border: 1px solid #D8CFBB; background: #FCFAF5; font-size: 12px; }
+  .income-row { display: flex; align-items: center; gap: 10px; background: #fff; border: 1px solid #E4DCC8; border-radius: 10px; padding: 12px 14px; margin-bottom: 14px; }
+  .income-row label { font-size: 11px; color: #8A8270; letter-spacing: .04em; flex-shrink: 0; }
+  .income-row input { flex: 1; padding: 8px 10px; border-radius: 6px; border: 1px solid #D8CFBB; background: #FCFAF5; font-size: 14px; }
+  .income-net { font-size: 12.5px; font-weight: 700; white-space: nowrap; }
+  .bill-row { display: flex; align-items: center; gap: 10px; background: #fff; padding: 10px 12px; }
+  .bill-row.checked .bill-name { text-decoration: line-through; color: #B8AF9A; }
+  .bill-row input[type=checkbox] { width: 17px; height: 17px; accent-color: #2F6B72; flex-shrink: 0; }
+  .bill-name { flex: 1 1 auto; font-size: 13px; }
+  .bill-amt { font-size: 13px; font-weight: 700; flex-shrink: 0; }
+  .bill-form { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; background: #fff; border: 1px solid #E4DCC8; border-radius: 10px; padding: 10px; }
+  .bill-form input, .bill-form select { padding: 9px 10px; border-radius: 6px; border: 1px solid #D8CFBB; background: #FCFAF5; font-size: 13px; }
+  #bill-name { flex: 1 1 auto; min-width: 100px; }
+  #bill-amount { flex: 0 0 90px; }
+  #bill-cat { flex: 0 0 110px; }
+  #bill-add-btn { flex: 0 0 40px; background: #2F6B72; color: #F4EFE6; border: none; border-radius: 6px; cursor: pointer; font-size: 18px; }
+</style>
+</head>
+<body>
+<div class="page">
+  <header>
+    <div>
+      <div class="eyebrow">MONTHLY LEDGER</div>
+      <h1>Rent · Groceries · Spending</h1>
+    </div>
+    <select id="monthSelect" aria-label="Select month"></select>
+  </header>
+
+  <div class="error-banner" id="errorBanner"></div>
+
+  <div class="view-toggle">
+    <button type="button" class="toggle-btn active" id="btnMonthView">Calendar Month</button>
+    <button type="button" class="toggle-btn" id="btnPeriodView">Pay Period</button>
+    <button type="button" class="toggle-btn" id="btnOverviewView">Overview</button>
+  </div>
+
+  <div class="section-heading" style="margin-top:0;">Add pay</div>
+  <form class="entry-form" id="payForm" style="margin-bottom:18px;">
+    <input type="date" id="pay-date" required style="flex:0 0 148px;">
+    <input type="number" id="pay-amount" step="0.01" min="0" placeholder="Paycheck amount" style="flex:1 1 auto;">
+    <button id="pay-add-btn" type="submit" aria-label="Add paycheck" style="flex:0 0 40px;background:#4A7C59;color:#F4EFE6;border:none;border-radius:6px;cursor:pointer;font-size:18px;">+</button>
+  </form>
+
+  <div id="overviewSection" style="display:none;">
+    <div class="income-row">
+      <label>Balance</label>
+      <div style="flex:1;"></div>
+      <div class="income-net" id="balanceAmount" style="font-size:18px;"></div>
+    </div>
+    <div style="font-size:11px;color:#8A8270;margin:-4px 0 16px;">All paychecks entered, minus everything logged, since you started tracking.</div>
+
+    <div class="section-heading" style="margin-top:0;">Week to date</div>
+    <div class="summary-strip" id="wtdStrip"></div>
+    <div class="income-net" id="wtdIncomeNet" style="font-size:12px;margin:-8px 0 16px;"></div>
+
+    <div class="section-heading">Month to date</div>
+    <div class="summary-strip" id="mtdStrip"></div>
+    <div class="income-net" id="mtdIncomeNet" style="font-size:12px;margin:-8px 0 16px;"></div>
+
+    <div class="section-heading">Year to date</div>
+    <div class="summary-strip" id="ytdStrip"></div>
+    <div class="income-net" id="ytdIncomeNet" style="font-size:12px;margin:-8px 0 16px;"></div>
+
+    <div class="section-heading">Paychecks</div>
+    <div class="list" id="incomeList"></div>
+  </div>
+
+  <div class="pay-settings" id="paySettings" style="display:none;">
+    <span>First payday:</span>
+    <input type="date" id="payAnchor">
+  </div>
+
+  <div class="summary-strip" id="summaryStrip"></div>
+
+  <div class="income-row" id="monthIncomeRow" style="display:none;">
+    <label>Income this month</label>
+    <div style="flex:1;"></div>
+    <div class="income-net" id="monthIncomeNet"></div>
+  </div>
+
+  <div class="income-row" id="incomeRow" style="display:none;">
+    <label>Income this period</label>
+    <div style="flex:1;"></div>
+    <div class="income-net" id="incomeNet"></div>
+  </div>
+
+  <div id="billsSection" style="display:none;">
+    <div class="section-heading">Recurring bills this payday</div>
+    <div style="font-size:11px;color:#8A8270;margin-bottom:8px;">Checking a bill logs it as an expense below. Unchecking won't delete an already-logged expense — remove it from the list if needed.</div>
+    <div class="list" id="billsList" style="margin-bottom:10px;"></div>
+    <form class="bill-form" id="billForm">
+      <input type="text" id="bill-name" placeholder="Bill name">
+      <input type="number" id="bill-amount" step="0.01" min="0" placeholder="0.00">
+      <select id="bill-cat">
+        <option value="rent">Rent</option>
+        <option value="car_insurance">Car Insurance</option>
+        <option value="car_financing">Car Payment</option>
+        <option value="utilities">Utilities</option>
+        <option value="internet_phone">Internet &amp; Phone</option>
+        <option value="gym">Gym</option>
+        <option value="haircut">Haircut &amp; Shave</option>
+        <option value="groceries">Groceries</option>
+        <option value="spending">Other Expenses</option>
+        <option value="bills" selected>Other Bills</option>
+      </select>
+      <button id="bill-add-btn" type="submit" aria-label="Add bill to this payday">+</button>
+    </form>
+    <button type="button" id="copyPrevBtn" style="display:none;background:none;border:none;color:#2F6B72;font-size:12px;cursor:pointer;padding:0 0 8px;">Copy last period's list</button>
+  </div>
+
+  <div class="paste-box">
+    <label>Paste a bank text alert to prefill an entry</label>
+    <div class="paste-row">
+      <textarea id="pasteInput" placeholder="e.g. Card ending 4821 was charged $42.17 at TARGET on 07/18"></textarea>
+      <button id="parseBtn" type="button">Parse</button>
+    </div>
+  </div>
+
+  <form class="entry-form" id="entryForm">
+    <input type="date" id="f-date" required>
+    <select id="f-category">
+      <option value="rent">Rent</option>
+      <option value="car_insurance">Car Insurance</option>
+      <option value="car_financing">Car Payment</option>
+      <option value="utilities">Utilities</option>
+      <option value="internet_phone">Internet &amp; Phone</option>
+      <option value="gym">Gym</option>
+      <option value="haircut">Haircut &amp; Shave</option>
+      <option value="groceries" selected>Groceries</option>
+      <option value="spending">Other Expenses</option>
+      <option value="bills">Other Bills</option>
+    </select>
+    <input type="text" id="f-note" placeholder="Note (optional)">
+    <input type="number" id="f-amount" step="0.01" min="0" placeholder="0.00" required>
+    <button id="addBtn" type="submit" aria-label="Add entry">+</button>
+  </form>
+
+  <div class="list" id="list"></div>
+
+  <div class="section-heading">Things to buy</div>
+  <form class="entry-form" id="buyForm">
+    <input type="text" id="b-item" placeholder="Item" style="flex:1 1 auto;">
+    <select id="b-category">
+      <option value="groceries" selected>Groceries</option>
+      <option value="spending">Other Expenses</option>
+    </select>
+    <button id="buyAddBtn" type="submit" aria-label="Add item">+</button>
+  </form>
+  <div class="list" id="buyList"></div>
+
+  <footer>Entries are stored only in this browser, on this device.</footer>
+</div>
+
+<script>
+const CATS = {
+  rent:           { label: "Rent",             color: "#8B5E34", icon: "&#8962;" },
+  car_insurance:  { label: "Car Insurance",    color: "#3B6E8F", icon: "&#128663;" },
+  car_financing:  { label: "Car Payment",      color: "#4B5FA8", icon: "&#128666;" },
+  utilities:      { label: "Utilities",        color: "#2F6B72", icon: "&#9889;" },
+  internet_phone: { label: "Internet & Phone", color: "#6A5ACD", icon: "&#128241;" },
+  gym:            { label: "Gym",              color: "#C77B3E", icon: "&#127947;" },
+  haircut:        { label: "Haircut & Shave",  color: "#A0522D", icon: "&#9986;" },
+  groceries:      { label: "Groceries",        color: "#4A7C59", icon: "&#128722;" },
+  spending:       { label: "Other Expenses",   color: "#B4533C", icon: "&#128176;" },
+  bills:          { label: "Other Bills",      color: "#708090", icon: "&#128221;" },
+};
+const STORAGE_KEY = "ledger_entries_v1";
+const BUY_STORAGE_KEY = "ledger_buylist_v1";
+const PAY_ANCHOR_KEY = "ledger_pay_anchor_v1";
+const PAY_INCOME_KEY = "ledger_pay_income_v1";
+const INCOME_KEY = "ledger_income_v1";
+const PAY_BILLS_KEY = "ledger_pay_bills_v1";
+
+function loadJSON(key, fallback) {
+  try {
+    const raw = localStorage.getItem(key);
+    return raw ? JSON.parse(raw) : fallback;
+  } catch (e) { return fallback; }
+}
+function saveJSON(key, val, errMsg) {
+  try {
+    localStorage.setItem(key, JSON.stringify(val));
+    hideError();
+  } catch (e) {
+    showError(errMsg || "Couldn't save — your browser storage may be full or blocked.");
+  }
+}
+function loadEntries() { return loadJSON(STORAGE_KEY, []); }
+function saveEntries(entries) { saveJSON(STORAGE_KEY, entries, "Couldn't save — your browser storage may be full or blocked."); }
+function loadBuyList() { return loadJSON(BUY_STORAGE_KEY, []); }
+function saveBuyList(list) { saveJSON(BUY_STORAGE_KEY, list, "Couldn't save your shopping list — browser storage may be full or blocked."); }
+function showError(msg) {
+  const el = document.getElementById("errorBanner");
+  el.textContent = msg;
+  el.style.display = "block";
+}
+function hideError() {
+  document.getElementById("errorBanner").style.display = "none";
+}
+
+let entries = loadEntries();
+let migratedSpecial = false;
+entries.forEach(e => { if (e.category === "special") { e.category = "spending"; migratedSpecial = true; } });
+if (migratedSpecial) saveEntries(entries);
+let buyList = loadBuyList();
+let activeMonth = monthKey(new Date());
+let payAnchor = localStorage.getItem(PAY_ANCHOR_KEY) || "2026-07-24";
+let income = loadJSON(INCOME_KEY, []);
+(function migrateOldPayIncome() {
+  if (income.length > 0) return;
+  try {
+    const raw = localStorage.getItem(PAY_INCOME_KEY);
+    if (!raw) return;
+    const oldMap = JSON.parse(raw);
+    const migrated = Object.entries(oldMap).map(([periodKey, amt]) => ({
+      id: "mig-" + periodKey, date: periodKey, amount: amt, note: "Paycheck",
+    }));
+    if (migrated.length) {
+      income = migrated;
+      saveJSON(INCOME_KEY, income, "Couldn't migrate old paycheck data.");
+    }
+  } catch (e) { /* ignore */ }
+})();
+function incomeForRange(start, end) {
+  return income.filter(i => {
+    const d = new Date(i.date + "T00:00:00");
+    return d >= start && d <= end;
+  }).reduce((a, i) => a + i.amount, 0);
+}
+let billsByPeriod = loadJSON(PAY_BILLS_KEY, {
+  "2026-07-24": [
+    { id: "s1", name: "Rent",               amount: 1100, category: "rent",           checked: false },
+    { id: "s2", name: "Electricity",        amount: 100,  category: "utilities",      checked: false },
+    { id: "s3", name: "Insurance",          amount: 150,  category: "car_insurance",  checked: false },
+    { id: "s4", name: "Gas",                amount: 90,   category: "utilities",      checked: false },
+    { id: "s5", name: "Internet and Phone", amount: 100,  category: "internet_phone", checked: false },
+    { id: "s6", name: "Haircut",            amount: 50,   category: "haircut",        checked: false },
+  ],
+  "2026-08-07": [
+    { id: "s7",  name: "Gas",         amount: 90,  category: "utilities",     checked: false },
+    { id: "s8",  name: "Gym",         amount: 15,  category: "gym",           checked: false },
+    { id: "s9",  name: "Disney plus", amount: 19,  category: "bills",         checked: false },
+    { id: "s10", name: "Rent",        amount: 700, category: "rent",          checked: false },
+    { id: "s11", name: "Car",         amount: 550, category: "car_financing", checked: false },
+    { id: "s12", name: "Cc",          amount: 150, category: "bills",         checked: false },
+    { id: "s13", name: "Haircut",     amount: 50,  category: "haircut",       checked: false },
+  ],
+});
+let migratedBillSpecial = false;
+Object.values(billsByPeriod).forEach(list => list.forEach(item => {
+  if (item.category === "special") { item.category = "spending"; migratedBillSpecial = true; }
+}));
+if (migratedBillSpecial) saveJSON(PAY_BILLS_KEY, billsByPeriod, "Couldn't save bill migration.");
+let viewMode = "month";
+
+function monthKey(d) { return d.getFullYear() + "-" + String(d.getMonth()+1).padStart(2,"0"); }
+function monthLabel(key) {
+  const [y,m] = key.split("-");
+  return new Date(Number(y), Number(m)-1, 1).toLocaleString("en-US",{month:"long",year:"numeric"});
+}
+function fmt(n) { return n.toLocaleString("en-US",{style:"currency",currency:"USD"}); }
+function todayStr() { return new Date().toISOString().slice(0,10); }
+function escapeHtml(s) {
+  const d = document.createElement("div");
+  d.textContent = s;
+  return d.innerHTML;
+}
+
+function periodInfo(dateStr) {
+  const anchor = new Date(payAnchor + "T00:00:00");
+  const d = new Date(dateStr + "T00:00:00");
+  const diffDays = Math.floor((d - anchor) / 86400000);
+  const idx = Math.floor(diffDays / 14);
+  const startDate = new Date(anchor.getTime() + idx * 14 * 86400000);
+  const template = ((idx % 2) + 2) % 2 === 0 ? "A" : "B";
+  const key = startDate.toISOString().slice(0,10);
+  return { idx, startDate, key, template };
+}
+function periodEndDate(startDate) { return new Date(startDate.getTime() + 13 * 86400000); }
+function periodLabel(startDate) {
+  const end = periodEndDate(startDate);
+  const opts = { month: "short", day: "numeric" };
+  return `${startDate.toLocaleDateString("en-US",opts)} – ${end.toLocaleDateString("en-US",opts)}`;
+}
+function generatePeriodKeys() {
+  const keysSet = new Set();
+  entries.forEach(e => keysSet.add(periodInfo(e.date).key));
+  income.forEach(i => keysSet.add(periodInfo(i.date).key));
+  const anchor = new Date(payAnchor + "T00:00:00");
+  for (let i = -4; i <= 8; i++) {
+    keysSet.add(new Date(anchor.getTime() + i * 14 * 86400000).toISOString().slice(0,10));
+  }
+  keysSet.add(activePeriodKey);
+  return Array.from(keysSet).sort().reverse();
+}
+
+let activePeriodKey = periodInfo(todayStr()).key;
+
+document.getElementById("f-date").value = todayStr();
+document.getElementById("payAnchor").value = payAnchor;
+
+function filteredEntriesAndLabel() {
+  if (viewMode === "month") {
+    const filtered = entries.filter(e => monthKey(new Date(e.date+"T00:00:00")) === activeMonth)
+      .sort((a,b) => a.date < b.date ? 1 : -1);
+    return { filtered, label: monthLabel(activeMonth), info: null };
+  }
+  const info = periodInfo(activePeriodKey);
+  const end = periodEndDate(info.startDate);
+  const filtered = entries.filter(e => {
+    const d = new Date(e.date+"T00:00:00");
+    return d >= info.startDate && d <= end;
+  }).sort((a,b) => a.date < b.date ? 1 : -1);
+  return { filtered, label: periodLabel(info.startDate), info };
+}
+
+function render() {
+  const isOverview = viewMode === "overview";
+  document.getElementById("overviewSection").style.display = isOverview ? "block" : "none";
+  document.getElementById("monthSelect").style.display = isOverview ? "none" : "";
+  document.getElementById("summaryStrip").style.display = isOverview ? "none" : "grid";
+  document.getElementById("entryForm").style.display = isOverview ? "none" : "flex";
+  document.getElementById("list").style.display = isOverview ? "none" : "flex";
+  document.querySelector(".paste-box").style.display = isOverview ? "none" : "block";
+  if (isOverview) {
+    document.getElementById("incomeRow").style.display = "none";
+    document.getElementById("monthIncomeRow").style.display = "none";
+    document.getElementById("billsSection").style.display = "none";
+    document.getElementById("paySettings").style.display = "none";
+    renderOverview();
+    return;
+  }
+
+  const sel = document.getElementById("monthSelect");
+  if (viewMode === "month") {
+    const months = new Set(entries.map(e => monthKey(new Date(e.date+"T00:00:00"))));
+    months.add(monthKey(new Date()));
+    const sortedMonths = Array.from(months).sort().reverse();
+    sel.innerHTML = sortedMonths.map(m => `<option value="${m}" ${m===activeMonth?"selected":""}>${monthLabel(m)}</option>`).join("");
+  } else {
+    const periodKeys = generatePeriodKeys();
+    sel.innerHTML = periodKeys.map(k => {
+      const info = periodInfo(k);
+      return `<option value="${k}" ${k===activePeriodKey?"selected":""}>${periodLabel(info.startDate)}</option>`;
+    }).join("");
+  }
+
+  const { filtered, label, info } = filteredEntriesAndLabel();
+
+  const totals = {}; Object.keys(CATS).forEach(k => totals[k] = 0);
+  filtered.forEach(e => totals[e.category] = (totals[e.category]||0) + e.amount);
+  const grand = Object.values(totals).reduce((a,b) => a+b, 0);
+
+  const strip = document.getElementById("summaryStrip");
+  strip.innerHTML = Object.keys(CATS).map(k => `
+    <div class="summary-card">
+      <div class="summary-icon" style="background:${CATS[k].color}20">${CATS[k].icon}</div>
+      <div>
+        <div class="summary-label">${CATS[k].label}</div>
+        <div class="summary-amount">${fmt(totals[k])}</div>
+      </div>
+    </div>`).join("") + `
+    <div class="summary-card total">
+      <div class="summary-icon" style="background:#ffffff22">&#128220;</div>
+      <div>
+        <div class="summary-label">Total</div>
+        <div class="summary-amount">${fmt(grand)}</div>
+      </div>
+    </div>`;
+
+  if (viewMode === "period") {
+    const end = periodEndDate(info.startDate);
+    const inc = incomeForRange(info.startDate, end);
+    const net = inc - grand;
+    const netEl = document.getElementById("incomeNet");
+    netEl.textContent = inc ? `${fmt(inc)} · Net: ${fmt(net)}` : "No pay logged yet";
+    netEl.style.color = inc ? (net < 0 ? "#B4533C" : "#4A7C59") : "#8A8270";
+    document.getElementById("incomeRow").style.display = "flex";
+    document.getElementById("monthIncomeRow").style.display = "none";
+    document.getElementById("billsSection").style.display = "block";
+    renderBillsChecklist(info);
+  } else {
+    const [y, m] = activeMonth.split("-");
+    const monthStart = new Date(Number(y), Number(m)-1, 1);
+    const monthEnd = new Date(Number(y), Number(m), 0);
+    const inc = incomeForRange(monthStart, monthEnd);
+    const net = inc - grand;
+    const netEl = document.getElementById("monthIncomeNet");
+    netEl.textContent = inc ? `${fmt(inc)} · Net: ${fmt(net)}` : "No pay logged yet";
+    netEl.style.color = inc ? (net < 0 ? "#B4533C" : "#4A7C59") : "#8A8270";
+    document.getElementById("monthIncomeRow").style.display = "flex";
+    document.getElementById("incomeRow").style.display = "none";
+    document.getElementById("billsSection").style.display = "none";
+  }
+
+  const list = document.getElementById("list");
+  if (filtered.length === 0) {
+    list.innerHTML = `<div class="empty">Nothing logged for ${label} yet. Add your first entry above.</div>`;
+  } else {
+    list.innerHTML = filtered.map(e => {
+      const meta = CATS[e.category] || CATS.spending;
+      const d = new Date(e.date+"T00:00:00").toLocaleDateString("en-US",{month:"short",day:"numeric"});
+      return `<div class="row">
+        <div class="row-icon" style="background:${meta.color}20">${meta.icon}</div>
+        <div class="row-date">${d}</div>
+        <div class="row-note">${escapeHtml(e.note || meta.label)}</div>
+        <div class="row-amount">${fmt(e.amount)}</div>
+        <button class="del-btn" data-id="${e.id}" aria-label="Delete entry">&#128465;</button>
+      </div>`;
+    }).join("");
+  }
+}
+
+function renderBillsChecklist(info) {
+  const items = billsByPeriod[info.key] || [];
+  const el = document.getElementById("billsList");
+  if (items.length === 0) {
+    el.innerHTML = `<div class="empty">Nothing added for this payday yet. Add bills below${hasPrevPeriodList(info) ? ", or copy the last period's list." : "."}</div>`;
+  } else {
+    el.innerHTML = items.map(item => {
+      const meta = CATS[item.category] || CATS.bills;
+      return `<div class="bill-row ${item.checked?"checked":""}" data-item-id="${item.id}">
+        <input type="checkbox" ${item.checked ? "checked" : ""} aria-label="Mark ${escapeHtml(item.name)} paid">
+        <div class="bill-name">${escapeHtml(item.name)}</div>
+        <div class="bill-amt" style="color:${meta.color}">${fmt(item.amount)}</div>
+        <button class="del-btn" data-bill-del="${item.id}" aria-label="Remove recurring bill">&#128465;</button>
+      </div>`;
+    }).join("");
+  }
+  const copyBtn = document.getElementById("copyPrevBtn");
+  copyBtn.style.display = hasPrevPeriodList(info) ? "inline-block" : "none";
+}
+function hasPrevPeriodList(info) {
+  const prevKey = new Date(info.startDate.getTime() - 14*86400000).toISOString().slice(0,10);
+  return !!(billsByPeriod[prevKey] && billsByPeriod[prevKey].length);
+}
+
+function startOfWeek(d) { const s = new Date(d); s.setHours(0,0,0,0); s.setDate(s.getDate() - s.getDay()); return s; }
+function startOfMonth(d) { return new Date(d.getFullYear(), d.getMonth(), 1); }
+function startOfYear(d) { return new Date(d.getFullYear(), 0, 1); }
+
+function totalsForRange(start, end) {
+  const totals = {}; Object.keys(CATS).forEach(k => totals[k] = 0);
+  entries.forEach(e => {
+    const d = new Date(e.date+"T00:00:00");
+    if (d >= start && d <= end) totals[e.category] = (totals[e.category]||0) + e.amount;
+  });
+  return totals;
+}
+
+function summaryStripHTML(totals) {
+  const grand = Object.values(totals).reduce((a,b) => a+b, 0);
+  return Object.keys(CATS).map(k => `
+    <div class="summary-card">
+      <div class="summary-icon" style="background:${CATS[k].color}20">${CATS[k].icon}</div>
+      <div>
+        <div class="summary-label">${CATS[k].label}</div>
+        <div class="summary-amount">${fmt(totals[k])}</div>
+      </div>
+    </div>`).join("") + `
+    <div class="summary-card total">
+      <div class="summary-icon" style="background:#ffffff22">&#128220;</div>
+      <div>
+        <div class="summary-label">Total</div>
+        <div class="summary-amount">${fmt(grand)}</div>
+      </div>
+    </div>`;
+}
+
+function renderOverview() {
+  const now = new Date();
+  now.setHours(0,0,0,0);
+  const ranges = [
+    { key: "wtd", start: startOfWeek(now) },
+    { key: "mtd", start: startOfMonth(now) },
+    { key: "ytd", start: startOfYear(now) },
+  ];
+  ranges.forEach(r => {
+    document.getElementById(r.key + "Strip").innerHTML = summaryStripHTML(totalsForRange(r.start, now));
+    const grand = Object.values(totalsForRange(r.start, now)).reduce((a,b) => a+b, 0);
+    const inc = incomeForRange(r.start, now);
+    const net = inc - grand;
+    const netEl = document.getElementById(r.key + "IncomeNet");
+    netEl.textContent = inc ? `Income ${fmt(inc)} · Net: ${fmt(net)}` : "No pay logged in this range";
+    netEl.style.color = inc ? (net < 0 ? "#B4533C" : "#4A7C59") : "#8A8270";
+  });
+
+  const totalIncome = income.reduce((a,i) => a+i.amount, 0);
+  const totalExpenses = entries.reduce((a,e) => a+e.amount, 0);
+  const balance = totalIncome - totalExpenses;
+  const balEl = document.getElementById("balanceAmount");
+  balEl.textContent = fmt(balance);
+  balEl.style.color = balance < 0 ? "#B4533C" : "#4A7C59";
+
+  const listEl = document.getElementById("incomeList");
+  if (income.length === 0) {
+    listEl.innerHTML = `<div class="empty">No paychecks logged yet. Add one above.</div>`;
+  } else {
+    const sorted = [...income].sort((a,b) => a.date < b.date ? 1 : -1);
+    listEl.innerHTML = sorted.map(i => {
+      const d = new Date(i.date+"T00:00:00").toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"});
+      return `<div class="row">
+        <div class="row-icon" style="background:#4A7C5920">&#128176;</div>
+        <div class="row-date">${d}</div>
+        <div class="row-note">${escapeHtml(i.note || "Paycheck")}</div>
+        <div class="row-amount">${fmt(i.amount)}</div>
+        <button class="del-btn" data-income-id="${i.id}" aria-label="Delete paycheck">&#128465;</button>
+      </div>`;
+    }).join("");
+  }
+}
+
+document.getElementById("incomeList").addEventListener("click", (e) => {
+  const btn = e.target.closest("[data-income-id]");
+  if (!btn) return;
+  income = income.filter(i => i.id !== btn.dataset.incomeId);
+  saveJSON(INCOME_KEY, income, "Couldn't save paycheck deletion.");
+  render();
+});
+
+document.getElementById("payForm").addEventListener("submit", (e) => {
+  e.preventDefault();
+  const date = document.getElementById("pay-date").value;
+  const amt = parseFloat(document.getElementById("pay-amount").value);
+  if (!date || !amt || amt <= 0) return;
+  income.unshift({
+    id: Date.now() + "-" + Math.random().toString(36).slice(2,7),
+    date, amount: Math.round(amt*100)/100, note: "Paycheck",
+  });
+  saveJSON(INCOME_KEY, income, "Couldn't save paycheck.");
+  document.getElementById("pay-amount").value = "";
+  render();
+});
+document.getElementById("pay-date").value = todayStr();
+
+document.getElementById("btnMonthView").addEventListener("click", () => {
+  viewMode = "month";
+  document.getElementById("btnMonthView").classList.add("active");
+  document.getElementById("btnPeriodView").classList.remove("active");
+  document.getElementById("btnOverviewView").classList.remove("active");
+  render();
+});
+document.getElementById("btnPeriodView").addEventListener("click", () => {
+  viewMode = "period";
+  document.getElementById("btnPeriodView").classList.add("active");
+  document.getElementById("btnMonthView").classList.remove("active");
+  document.getElementById("btnOverviewView").classList.remove("active");
+  document.getElementById("paySettings").style.display = "flex";
+  render();
+});
+document.getElementById("btnOverviewView").addEventListener("click", () => {
+  viewMode = "overview";
+  document.getElementById("btnOverviewView").classList.add("active");
+  document.getElementById("btnMonthView").classList.remove("active");
+  document.getElementById("btnPeriodView").classList.remove("active");
+  render();
+});
+
+document.getElementById("payAnchor").addEventListener("change", (e) => {
+  payAnchor = e.target.value;
+  localStorage.setItem(PAY_ANCHOR_KEY, payAnchor);
+  activePeriodKey = periodInfo(todayStr()).key;
+  render();
+});
+
+document.getElementById("monthSelect").addEventListener("change", (e) => {
+  if (viewMode === "month") activeMonth = e.target.value;
+  else activePeriodKey = e.target.value;
+  render();
+});
+
+document.getElementById("entryForm").addEventListener("submit", (e) => {
+  e.preventDefault();
+  const amt = parseFloat(document.getElementById("f-amount").value);
+  const date = document.getElementById("f-date").value;
+  if (!amt || amt <= 0 || !date) return;
+  entries.unshift({
+    id: Date.now() + "-" + Math.random().toString(36).slice(2,7),
+    date,
+    category: document.getElementById("f-category").value,
+    note: document.getElementById("f-note").value.trim(),
+    amount: Math.round(amt*100)/100,
+  });
+  saveEntries(entries);
+  document.getElementById("f-note").value = "";
+  document.getElementById("f-amount").value = "";
+  render();
+});
+
+document.getElementById("list").addEventListener("click", (e) => {
+  const btn = e.target.closest(".del-btn");
+  if (!btn) return;
+  entries = entries.filter(en => en.id !== btn.dataset.id);
+  saveEntries(entries);
+  render();
+});
+
+document.getElementById("billForm").addEventListener("submit", (e) => {
+  e.preventDefault();
+  const name = document.getElementById("bill-name").value.trim();
+  const amt = parseFloat(document.getElementById("bill-amount").value);
+  const cat = document.getElementById("bill-cat").value;
+  if (!name || !amt || amt <= 0) return;
+  const list = billsByPeriod[activePeriodKey] || (billsByPeriod[activePeriodKey] = []);
+  list.push({ id: Date.now() + "-" + Math.random().toString(36).slice(2,7), name, amount: Math.round(amt*100)/100, category: cat, checked: false });
+  saveJSON(PAY_BILLS_KEY, billsByPeriod, "Couldn't save this bill.");
+  document.getElementById("bill-name").value = "";
+  document.getElementById("bill-amount").value = "";
+  render();
+});
+
+document.getElementById("copyPrevBtn").addEventListener("click", () => {
+  const info = periodInfo(activePeriodKey);
+  const prevKey = new Date(info.startDate.getTime() - 14*86400000).toISOString().slice(0,10);
+  const prevList = billsByPeriod[prevKey] || [];
+  if (prevList.length === 0) return;
+  billsByPeriod[activePeriodKey] = prevList.map(item => ({
+    id: Date.now() + "-" + Math.random().toString(36).slice(2,7),
+    name: item.name,
+    amount: item.amount,
+    category: item.category,
+    checked: false,
+  }));
+  saveJSON(PAY_BILLS_KEY, billsByPeriod, "Couldn't copy the bill list.");
+  render();
+});
+
+document.getElementById("billsList").addEventListener("click", (e) => {
+  const info = periodInfo(activePeriodKey);
+  const list = billsByPeriod[activePeriodKey] || [];
+  const delBtn = e.target.closest("[data-bill-del]");
+  if (delBtn) {
+    billsByPeriod[activePeriodKey] = list.filter(i => i.id !== delBtn.dataset.billDel);
+    saveJSON(PAY_BILLS_KEY, billsByPeriod, "Couldn't save this bill.");
+    render();
+    return;
+  }
+  if (!e.target.matches('input[type="checkbox"]')) return;
+  const row = e.target.closest(".bill-row");
+  const itemId = row.dataset.itemId;
+  const item = list.find(i => i.id === itemId);
+  if (!item) return;
+  if (e.target.checked && !item.checked) {
+    const priceStr = window.prompt(`Amount paid for "${item.name}"?`, item.amount);
+    if (priceStr === null) { render(); return; }
+    const amt = parseFloat(priceStr);
+    if (!amt || amt <= 0) { render(); return; }
+    entries.unshift({
+      id: Date.now() + "-" + Math.random().toString(36).slice(2,7),
+      date: info.key,
+      category: item.category,
+      note: item.name,
+      amount: Math.round(amt*100)/100,
+    });
+    saveEntries(entries);
+    item.checked = true;
+  } else if (!e.target.checked) {
+    item.checked = false;
+  }
+  saveJSON(PAY_BILLS_KEY, billsByPeriod, "Couldn't save this bill.");
+  render();
+});
+
+// Paste-to-parse: pulls a dollar amount, a merchant name, and a date out of typical bank alert text.
+document.getElementById("parseBtn").addEventListener("click", () => {
+  const text = document.getElementById("pasteInput").value;
+  if (!text.trim()) return;
+
+  const amountMatch = text.match(/\$\s?([0-9]+(?:\.[0-9]{1,2})?)/);
+  if (amountMatch) document.getElementById("f-amount").value = amountMatch[1];
+
+  const dateMatch = text.match(/\b(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?\b/);
+  if (dateMatch) {
+    const now = new Date();
+    let [ , mm, dd, yy ] = dateMatch;
+    let year = yy ? (yy.length === 2 ? "20"+yy : yy) : now.getFullYear();
+    const iso = `${year}-${mm.padStart(2,"0")}-${dd.padStart(2,"0")}`;
+    if (!isNaN(new Date(iso).getTime())) document.getElementById("f-date").value = iso;
+  }
+
+  const atMatch = text.match(/\bat\s+([A-Za-z0-9&'.\-\s]{2,30}?)(?:\s+on\b|\s*$|\.)/i);
+  const merchant = atMatch ? atMatch[1].trim() : "";
+  if (merchant) document.getElementById("f-note").value = merchant;
+
+  const lower = text.toLowerCase();
+  const catSelect = document.getElementById("f-category");
+  if (/rent|landlord|property mgmt|apartments/.test(lower)) catSelect.value = "rent";
+  else if (/grocery|market|foods|kroger|target|walmart|trader joe|safeway|aldi/.test(lower)) catSelect.value = "groceries";
+  else catSelect.value = "spending";
+
+  document.getElementById("pasteInput").value = "";
+});
+
+function renderBuyList() {
+  const el = document.getElementById("buyList");
+  if (buyList.length === 0) {
+    el.innerHTML = `<div class="empty">Nothing on the list. Add something above.</div>`;
+    return;
+  }
+  el.innerHTML = buyList.map(item => {
+    const meta = CATS[item.category] || CATS.groceries;
+    return `
+    <div class="buy-row" data-id="${item.id}">
+      <input type="checkbox" ${item.bought ? "checked" : ""} aria-label="Mark ${escapeHtml(item.name)} as bought">
+      <div class="buy-item">${escapeHtml(item.name)}</div>
+      <span class="buy-cat" style="color:${meta.color}">${meta.label}</span>
+      <button class="del-btn" data-buy-id="${item.id}" aria-label="Remove item">&#128465;</button>
+    </div>`;
+  }).join("");
+}
+
+document.getElementById("buyForm").addEventListener("submit", (e) => {
+  e.preventDefault();
+  const input = document.getElementById("b-item");
+  const name = input.value.trim();
+  if (!name) return;
+  const category = document.getElementById("b-category").value;
+  buyList.unshift({ id: Date.now() + "-" + Math.random().toString(36).slice(2,7), name, category, bought: false });
+  saveBuyList(buyList);
+  input.value = "";
+  renderBuyList();
+});
+
+document.getElementById("buyList").addEventListener("click", (e) => {
+  const delBtn = e.target.closest("[data-buy-id]");
+  if (delBtn) {
+    buyList = buyList.filter(i => i.id !== delBtn.dataset.buyId);
+    saveBuyList(buyList);
+    renderBuyList();
+    return;
+  }
+  if (e.target.matches('input[type="checkbox"]')) {
+    const row = e.target.closest(".buy-row");
+    const id = row.dataset.id;
+    const item = buyList.find(i => i.id === id);
+    if (!item) return;
+    if (e.target.checked) {
+      const priceStr = window.prompt(`Price for "${item.name}"? (leave blank to just check it off, no expense logged)`, "");
+      if (priceStr !== null && priceStr.trim() !== "") {
+        const amt = parseFloat(priceStr);
+        if (amt > 0) {
+          entries.unshift({
+            id: Date.now() + "-" + Math.random().toString(36).slice(2,7),
+            date: todayStr(),
+            category: item.category || "groceries",
+            note: item.name,
+            amount: Math.round(amt*100)/100,
+          });
+          saveEntries(entries);
+          render();
+        }
+      }
+      buyList = buyList.filter(i => i.id !== id);
+    } else {
+      item.bought = false;
+    }
+    saveBuyList(buyList);
+    renderBuyList();
+  }
+});
+
+render();
+renderBuyList();
+</script>
+</body>
+</html>
